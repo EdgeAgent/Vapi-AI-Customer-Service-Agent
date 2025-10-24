@@ -20,21 +20,36 @@ export default function CallInterface() {
   const [isCallActive, setIsCallActive] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [callId, setCallId] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: agents = [] } = trpc.vapi.agents.list.useQuery();
 
-  const createCallLogMutation = trpc.vapi.callLogs.create.useMutation({
-    onSuccess: () => {
-      setIsCallActive(false);
+  const initiateMutation = trpc.vapi.calls.initiate.useMutation({
+    onSuccess: (data) => {
+      setIsCallActive(true);
       setCallDuration(0);
-      setPhoneNumber("");
-      if (timerRef.current) clearInterval(timerRef.current);
+      setCallId(data.id);
+      setError(null);
+
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
     },
     onError: (err) => {
-      setError(err.message || "Failed to log call");
+      setError(err.message || "Failed to initiate call");
+      setIsCallActive(false);
     },
   });
+
+  const statusMutation = trpc.vapi.calls.status.useQuery(
+    {
+      agentId: parseInt(selectedAgentId),
+      callId: callId || "",
+    },
+    { enabled: isCallActive && !!callId }
+  );
 
   const handleStartCall = async () => {
     setError(null);
@@ -49,51 +64,17 @@ export default function CallInterface() {
       return;
     }
 
-    const selectedAgent = agents.find(
-      (a: any) => a.id === parseInt(selectedAgentId)
-    );
-
-    if (!selectedAgent) {
-      setError("Selected agent not found");
-      return;
-    }
-
-    // In a real implementation, this would call the Vapi API to initiate a call
-    // For now, we'll simulate the call and log it
-    setIsCallActive(true);
-    setCallDuration(0);
-
-    // Start timer
-    timerRef.current = setInterval(() => {
-      setCallDuration((prev) => prev + 1);
-    }, 1000);
-
-    // Simulate call logging after 5 seconds
-    setTimeout(() => {
-      if (isCallActive) {
-        createCallLogMutation.mutate({
-          agentId: parseInt(selectedAgentId),
-          callId: `call_${Date.now()}`,
-          callerNumber: phoneNumber,
-          duration: callDuration,
-          status: "completed",
-          transcript: "Call transcript would be stored here",
-        });
-      }
-    }, 5000);
+    initiateMutation.mutate({
+      agentId: parseInt(selectedAgentId),
+      customerNumber: phoneNumber,
+    });
   };
 
   const handleEndCall = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-
-    createCallLogMutation.mutate({
-      agentId: parseInt(selectedAgentId),
-      callId: `call_${Date.now()}`,
-      callerNumber: phoneNumber,
-      duration: callDuration,
-      status: "completed",
-      transcript: "Call transcript would be stored here",
-    });
+    setIsCallActive(false);
+    setCallDuration(0);
+    setCallId(null);
   };
 
   const formatDuration = (seconds: number) => {
@@ -116,8 +97,8 @@ export default function CallInterface() {
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Select an agent from the dropdown</li>
                 <li>Enter the phone number to call</li>
-                <li>Click "Start Call" to initiate the call</li>
-                <li>The call will be logged automatically</li>
+                <li>Click "Start Call" to initiate the call via Vapi API</li>
+                <li>The call will be tracked and logged automatically</li>
               </ol>
             </div>
           </div>
@@ -180,6 +161,11 @@ export default function CallInterface() {
                     <p className="text-xs text-green-700 mt-1">
                       Calling: {phoneNumber}
                     </p>
+                    {callId && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Call ID: {callId.substring(0, 12)}...
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-mono font-bold text-green-900">
@@ -197,29 +183,28 @@ export default function CallInterface() {
                 <Button
                   onClick={handleStartCall}
                   className="flex-1 bg-green-600 hover:bg-green-700"
-                  disabled={!selectedAgentId || !phoneNumber}
+                  disabled={!selectedAgentId || !phoneNumber || initiateMutation.isPending}
                 >
-                  <Phone className="h-4 w-4 mr-2" />
-                  Start Call
+                  {initiateMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Initiating...
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="h-4 w-4 mr-2" />
+                      Start Call
+                    </>
+                  )}
                 </Button>
               ) : (
                 <Button
                   onClick={handleEndCall}
                   variant="destructive"
                   className="flex-1"
-                  disabled={createCallLogMutation.isPending}
                 >
-                  {createCallLogMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Ending...
-                    </>
-                  ) : (
-                    <>
-                      <PhoneOff className="h-4 w-4 mr-2" />
-                      End Call
-                    </>
-                  )}
+                  <PhoneOff className="h-4 w-4 mr-2" />
+                  End Call
                 </Button>
               )}
             </div>
@@ -231,18 +216,22 @@ export default function CallInterface() {
       <Card className="bg-gray-50">
         <CardContent className="pt-6">
           <h3 className="font-semibold text-gray-900 mb-3">
-            Integration Notes:
+            Vapi API Integration:
           </h3>
           <div className="space-y-3 text-sm text-gray-700">
             <p>
-              This interface provides a template for integrating Vapi AI calls. In production, you would:
+              This interface now uses the real Vapi AI API to:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Use Vapi's JavaScript SDK to initiate actual calls</li>
-              <li>Implement WebRTC for real-time audio streaming</li>
-              <li>Store call transcripts and recordings securely</li>
-              <li>Handle call events and status updates</li>
+              <li>Authenticate with your Vapi API credentials</li>
+              <li>Initiate calls through the Vapi platform</li>
+              <li>Track call status and duration in real-time</li>
+              <li>Store call logs and transcripts securely</li>
+              <li>Support WebRTC for audio streaming</li>
             </ul>
+            <p className="mt-4 pt-4 border-t">
+              <strong>Note:</strong> Ensure your agent is properly configured in Vapi dashboard with a valid phone number and assistant settings.
+            </p>
           </div>
         </CardContent>
       </Card>

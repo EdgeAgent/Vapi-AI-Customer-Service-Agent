@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getUserVapiAgents, getVapiAgentById, createVapiAgent, updateVapiAgent, deleteVapiAgent, getAgentCallLogs, createCallLog } from "./db";
+import VapiService from "./services/vapiService";
 
 export const appRouter = router({
   system: systemRouter,
@@ -40,12 +41,24 @@ export const appRouter = router({
           description: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-          const result = await createVapiAgent({
-            userId: ctx.user.id,
-            ...input,
-            isActive: 'true',
-          });
-          return result;
+          try {
+            const vapiService = new VapiService(input.apiKey);
+            
+            // Verify the API key by fetching agent details
+            if (input.agentId) {
+              await vapiService.getAgent(input.agentId);
+            }
+            
+            // Store the agent configuration in database
+            const result = await createVapiAgent({
+              userId: ctx.user.id,
+              ...input,
+              isActive: 'true',
+            });
+            return result;
+          } catch (error: any) {
+            throw new Error(`Failed to create agent: ${error.message}`);
+          }
         }),
       
       get: protectedProcedure
@@ -53,10 +66,23 @@ export const appRouter = router({
         .query(async ({ input }) => {
           const agent = await getVapiAgentById(input.id);
           if (!agent) return null;
-          return {
-            ...agent,
-            apiKey: agent.apiKey ? '***' : undefined,
-          };
+          
+          try {
+            const vapiService = new VapiService(agent.apiKey);
+            const vapiAgent = await vapiService.getAgent(agent.agentId);
+            
+            return {
+              ...agent,
+              apiKey: agent.apiKey ? '***' : undefined,
+              vapiDetails: vapiAgent,
+            };
+          } catch (error) {
+            // Return local data if Vapi API call fails
+            return {
+              ...agent,
+              apiKey: agent.apiKey ? '***' : undefined,
+            };
+          }
         }),
       
       update: protectedProcedure
@@ -98,6 +124,61 @@ export const appRouter = router({
         }))
         .mutation(async ({ input }) => {
           return await createCallLog(input);
+        }),
+    }),
+
+    calls: router({
+      initiate: protectedProcedure
+        .input(z.object({
+          agentId: z.number(),
+          customerNumber: z.string(),
+          assistantId: z.string().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          try {
+            const agent = await getVapiAgentById(input.agentId);
+            if (!agent || agent.userId !== ctx.user.id) {
+              throw new Error('Agent not found or unauthorized');
+            }
+            
+            const vapiService = new VapiService(agent.apiKey);
+            const call = await vapiService.createCall({
+              agentId: agent.agentId,
+              customerNumber: input.customerNumber,
+              assistantId: input.assistantId || agent.assistantId || undefined,
+            });
+            
+            // Log the call
+            await createCallLog({
+              agentId: input.agentId,
+              callId: call.id || `call_${Date.now()}`,
+              callerNumber: input.customerNumber,
+              status: 'initiated',
+            });
+            
+            return call;
+          } catch (error: any) {
+            throw new Error(`Failed to create call: ${error.message}`);
+          }
+        }),
+      
+      status: protectedProcedure
+        .input(z.object({
+          agentId: z.number(),
+          callId: z.string(),
+        }))
+        .query(async ({ input, ctx }) => {
+          try {
+            const agent = await getVapiAgentById(input.agentId);
+            if (!agent || agent.userId !== ctx.user.id) {
+              throw new Error('Agent not found or unauthorized');
+            }
+            
+            const vapiService = new VapiService(agent.apiKey);
+            return await vapiService.getCall(input.callId);
+          } catch (error: any) {
+            throw new Error(`Failed to get call: ${error.message}`);
+          }
         }),
     }),
   }),
