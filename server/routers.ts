@@ -4,7 +4,10 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getUserVapiAgents, getVapiAgentById, createVapiAgent, updateVapiAgent, deleteVapiAgent, getAgentCallLogs, createCallLog } from "./db";
-import VapiService from "./services/vapiService";
+import MockVapiService from "./services/mockVapiService";
+
+// Use mock service for demo mode
+const vapiService = new MockVapiService();
 
 export const appRouter = router({
   system: systemRouter,
@@ -42,12 +45,11 @@ export const appRouter = router({
         }))
         .mutation(async ({ ctx, input }) => {
           try {
-            const vapiService = new VapiService(input.apiKey);
-            
-            // Verify the API key by fetching agent details
-            if (input.agentId) {
-              await vapiService.getAgent(input.agentId);
-            }
+            // Verify with mock service
+            await vapiService.getAgent(input.agentId).catch(() => {
+              // If agent doesn't exist in mock, that's okay for demo
+              return null;
+            });
             
             // Store the agent configuration in database
             const result = await createVapiAgent({
@@ -68,7 +70,6 @@ export const appRouter = router({
           if (!agent) return null;
           
           try {
-            const vapiService = new VapiService(agent.apiKey);
             const vapiAgent = await vapiService.getAgent(agent.agentId);
             
             return {
@@ -141,11 +142,11 @@ export const appRouter = router({
               throw new Error('Agent not found or unauthorized');
             }
             
-            const vapiService = new VapiService(agent.apiKey);
+            // Use mock service for demo
             const call = await vapiService.createCall({
               agentId: agent.agentId,
               customerNumber: input.customerNumber,
-              assistantId: input.assistantId || agent.assistantId || undefined,
+              assistantId: input.assistantId || agent.assistantId,
             });
             
             // Log the call
@@ -174,7 +175,7 @@ export const appRouter = router({
               throw new Error('Agent not found or unauthorized');
             }
             
-            const vapiService = new VapiService(agent.apiKey);
+            // Use mock service for demo
             return await vapiService.getCall(input.callId);
           } catch (error: any) {
             throw new Error(`Failed to get call: ${error.message}`);

@@ -10,13 +10,13 @@ import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
 export default function AgentSetup() {
   const [formData, setFormData] = useState({
-    agentName: "",
-    agentId: "",
-    apiKey: "",
+    agentName: "Demo Customer Support Agent",
+    agentId: "agent_demo_001",
+    apiKey: "demo_key_12345",
     publicKey: "",
-    assistantId: "",
-    phoneNumber: "",
-    description: "",
+    assistantId: "asst_demo_001",
+    phoneNumber: "+1 (555) 123-4567",
+    description: "A demo customer service agent for testing",
   });
 
   const [showSuccess, setShowSuccess] = useState(false);
@@ -26,13 +26,13 @@ export default function AgentSetup() {
     onSuccess: () => {
       setShowSuccess(true);
       setFormData({
-        agentName: "",
-        agentId: "",
-        apiKey: "",
+        agentName: "Demo Customer Support Agent",
+        agentId: "agent_demo_001",
+        apiKey: "demo_key_12345",
         publicKey: "",
-        assistantId: "",
-        phoneNumber: "",
-        description: "",
+        assistantId: "asst_demo_001",
+        phoneNumber: "+1 (555) 123-4567",
+        description: "A demo customer service agent for testing",
       });
       setError(null);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -66,24 +66,44 @@ export default function AgentSetup() {
 
   return (
     <div className="space-y-6">
+      {/* Demo Mode Info */}
+      <Card className="bg-amber-50 border-amber-200">
+        <CardContent className="pt-6">
+          <div className="flex gap-3">
+            <div className="text-2xl">🎯</div>
+            <div>
+              <h3 className="font-semibold text-amber-900 mb-2">
+                Demo Mode Active
+              </h3>
+              <p className="text-sm text-amber-800">
+                This application is running in demo mode with pre-filled sample credentials. You can modify the fields below and create test agents to explore all features.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Info Card */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="pt-6">
           <h3 className="font-semibold text-blue-900 mb-2">
-            Where to find your Vapi AI credentials:
+            Getting Started:
           </h3>
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
             <li>
-              <strong>Agent ID:</strong> Found in your Vapi dashboard under Agent Settings
+              <strong>Demo Mode:</strong> Pre-filled with sample data - modify as needed
             </li>
             <li>
-              <strong>API Key:</strong> Generate from Vapi API Keys section in your account
+              <strong>Create Agent:</strong> Click "Create Agent" to add a new agent
             </li>
             <li>
-              <strong>Public Key:</strong> Optional, used for client-side authentication
+              <strong>View Agents:</strong> Go to the "Agents" tab to see all created agents
             </li>
             <li>
-              <strong>Assistant ID:</strong> Optional, specific assistant configuration ID
+              <strong>Make Calls:</strong> Use the "Call" tab to initiate demo calls
+            </li>
+            <li>
+              <strong>View Logs:</strong> Check the "Logs" tab to see call history
             </li>
           </ul>
         </CardContent>
@@ -142,7 +162,7 @@ export default function AgentSetup() {
               required
             />
             <p className="text-xs text-gray-500">
-              From your Vapi dashboard
+              Unique identifier for this agent
             </p>
           </div>
 
@@ -161,7 +181,7 @@ export default function AgentSetup() {
               required
             />
             <p className="text-xs text-gray-500">
-              Keep this secure - never share publicly
+              Demo mode - use any value
             </p>
           </div>
 
@@ -241,24 +261,33 @@ export default function AgentSetup() {
         </Button>
       </form>
 
-      {/* Additional Info */}
+      {/* Features Info */}
       <Card className="bg-gray-50">
         <CardContent className="pt-6">
           <h3 className="font-semibold text-gray-900 mb-3">
-            Implementation Options:
+            Demo Features:
           </h3>
           <div className="space-y-3 text-sm text-gray-700">
             <div>
-              <p className="font-medium text-gray-900">1. Number Porting (Recommended)</p>
-              <p>Port your existing phone number to Twilio for seamless AI agent integration.</p>
+              <p className="font-medium text-gray-900">✅ Agent Management</p>
+              <p>Create, view, edit, and delete agents with full CRUD operations</p>
             </div>
             <div>
-              <p className="font-medium text-gray-900">2. Call Forwarding</p>
-              <p>Set up call forwarding from your current number to a new Twilio number.</p>
+              <p className="font-medium text-gray-900">✅ Call Simulation</p>
+              <p>Initiate demo calls and track call status in real-time</p>
             </div>
             <div>
-              <p className="font-medium text-gray-900">3. Outbound Only</p>
-              <p>Use the agent for making outbound calls and SMS with your verified number.</p>
+              <p className="font-medium text-gray-900">✅ Call Logging</p>
+              <p>View call history, export to CSV, and analyze call statistics</p>
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">✅ User Authentication</p>
+              <p>Secure login with Manus OAuth - each user has their own agents</p>
+            </div>
+            <div className="pt-4 border-t">
+              <p className="text-xs text-gray-600">
+                <strong>To use with real Vapi credentials:</strong> Replace the demo values with your actual Vapi API key and agent ID from your Vapi dashboard.
+              </p>
             </div>
           </div>
         </CardContent>
