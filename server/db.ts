@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, vapiAgents, InsertVapiAgent, vapiCallLogs, InsertVapiCallLog } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -87,6 +87,65 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserVapiAgents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(vapiAgents)
+    .where(eq(vapiAgents.userId, userId));
+}
+
+export async function getVapiAgentById(agentId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(vapiAgents)
+    .where(eq(vapiAgents.id, agentId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createVapiAgent(agent: InsertVapiAgent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(vapiAgents).values(agent);
+  return result;
+}
+
+export async function updateVapiAgent(agentId: number, updates: Partial<InsertVapiAgent>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db
+    .update(vapiAgents)
+    .set(updates)
+    .where(eq(vapiAgents.id, agentId));
+}
+
+export async function deleteVapiAgent(agentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db
+    .delete(vapiAgents)
+    .where(eq(vapiAgents.id, agentId));
+}
+
+export async function createCallLog(log: InsertVapiCallLog) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.insert(vapiCallLogs).values(log);
+}
+
+export async function getAgentCallLogs(agentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(vapiCallLogs)
+    .where(eq(vapiCallLogs.agentId, agentId));
 }
 
 // TODO: add feature queries here as your schema grows.
